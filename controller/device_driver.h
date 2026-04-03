@@ -54,3 +54,12 @@ extern void TIM4_Change_Value(int time);
 extern void TIM3_Out_Init(void);
 extern void TIM3_Out_Freq_Generation(unsigned short freq);
 extern void TIM3_Out_Stop(void);
+
+// adc.c
+
+extern void ADC1_2CH_Init(void);
+extern void ADC1_Stop(void);
+extern int ADC1_Get_Data(void);
+extern int ADC1_Get_Status(void);
+extern void ADC1_Start(void);
+extern void ADC1_Select_Channel(int ch);
