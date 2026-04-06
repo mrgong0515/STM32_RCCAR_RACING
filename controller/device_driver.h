@@ -54,3 +54,27 @@ extern void TIM4_Change_Value(int time);
 extern void TIM3_Out_Init(void);
 extern void TIM3_Out_Freq_Generation(unsigned short freq);
 extern void TIM3_Out_Stop(void);
+
+// i2c.c
+
+extern void I2C1_Init(void);
+extern void I2C1_Write_Byte(unsigned char slave_addr, unsigned char data);
+
+// Adc.c
+
+extern void ADC1_Init(void);
+extern int  ADC1_Read(int chennel);
+
+// Lcd.c
+
+extern void LCD_Init(void);
+extern void LCD_Send_Cmd(unsigned char cmd);
+extern void LCD_Send_Data(unsigned char data);
+extern void LCD_Print_String(char *str);
+
+// Joystick.c
+
+extern void Joystick_Init(void);
+extern int Joystick_Get_X(void);
+extern int Joystick_Get_Y(void);
+extern int Joystick_Get_SW(void);
