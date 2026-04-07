@@ -54,3 +54,9 @@ extern void TIM4_Change_Value(int time);
 extern void TIM3_Out_Init(void);
 extern void TIM3_Out_Freq_Generation(unsigned short freq);
 extern void TIM3_Out_Stop(void);
+
+// Motor.c
+
+extern void Motor_Init(void);
+extern void Motor_Set_PWM(int left_duty, int right_duty);
+extern void Control_Motor_By_Joystick(char joy);

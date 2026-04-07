@@ -79,13 +79,13 @@ int Get_Joystick_Direction(int x, int y)
     int raw_dx = 0; 
     int raw_dy = 0; 
 
-    // X축 원시 데이터 분석 (데드존 기준 1748 ~ 2348)
-    if (x > 2348) raw_dx = 1;
-    else if (x < 1748) raw_dx = -1;
+    // X축 원시 데이터 분석 (데드존 범위를 1000 ~ 3000으로 대폭 확대)
+    if (x > 3000) raw_dx = 1;
+    else if (x < 1000) raw_dx = -1;
 
     // Y축 원시 데이터 분석
-    if (y > 2348) raw_dy = 1;
-    else if (y < 1748) raw_dy = -1;
+    if (y > 3000) raw_dy = 1;
+    else if (y < 1000) raw_dy = -1;
 
     // 90도 시계 방향 회전 변환 적용
     // 기존의 왼쪽(-1, 0) 입력이 위쪽(0, 1)으로 매핑되도록 축 교환 및 부호 반전
