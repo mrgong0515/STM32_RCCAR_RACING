@@ -132,3 +132,19 @@ void MAX7219_FillModule(int module)
         MAX7219_SendOne(module, row, 0xFF);
     }
 }
+
+void MAX7219_ShowPattern(int module, unsigned char *pattern)
+{
+    for (int row = 0; row < 8; row++)
+    {
+        MAX7219_SendOne(module, row + 1, pattern[row]);
+    }
+}
+
+void MAX7219_FillModulesRange(int from_module, int to_module)
+{
+    for (int module = from_module; module <= to_module; module++)
+    {
+        MAX7219_FillModule(module);
+    }
+}

@@ -91,6 +91,13 @@ extern void MAX7219_SendAll(unsigned char addr, unsigned char data);
 extern void MAX7219_Init(void);
 extern void MAX7219_ClearAll(void);
 extern void MAX7219_FillModule(int module);
+extern void MAX7219_ShowPattern(int module, unsigned char *pattern);
+extern void MAX7219_FillModulesRange(int from_module, int to_module);
 
 // Buzzer.c
 
+extern void Buzzer_Init(void);
+extern void Buzzer_Beep(int on_ms, int off_ms);
+extern void Buzzer_Count_Short(void);
+extern void Buzzer_Count_Long(void);
+extern void Buzzer_Start_Race(void);
