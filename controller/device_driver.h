@@ -55,11 +55,26 @@ extern void TIM3_Out_Init(void);
 extern void TIM3_Out_Freq_Generation(unsigned short freq);
 extern void TIM3_Out_Stop(void);
 
-// adc.c
+// i2c.c
 
-extern void ADC1_2CH_Init(void);
-extern void ADC1_Stop(void);
-extern int ADC1_Get_Data(void);
-extern int ADC1_Get_Status(void);
-extern void ADC1_Start(void);
-extern void ADC1_Select_Channel(int ch);
+extern void I2C1_Init(void);
+extern void I2C1_Write_Byte(unsigned char slave_addr, unsigned char data);
+
+// Adc.c
+
+extern void ADC1_Init(void);
+extern int  ADC1_Read(int chennel);
+
+// Lcd.c
+
+extern void LCD_Init(void);
+extern void LCD_Send_Cmd(unsigned char cmd);
+extern void LCD_Send_Data(unsigned char data);
+extern void LCD_Print_String(char *str);
+
+// Joystick.c
+
+extern void Joystick_Init(void);
+extern int Joystick_Get_X(void);
+extern int Joystick_Get_Y(void);
+extern int Joystick_Get_SW(void);

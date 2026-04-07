@@ -1,78 +1,111 @@
 #include "device_driver.h"
 #include <stdio.h>
 
-// 조이스틱 판단 기준 (중앙 2048 기준)
-#define JOY_CENTER 2048
-#define THRESHOLD  1200  
+int Get_Joystick_Direction(int x, int y);
 
-void Sys_Init_Controller(int baud) 
+void Sys_Init(int baud) 
 {
+    // FPU 및 클럭 설정
     SCB->CPACR |= (0x3 << 10*2)|(0x3 << 11*2); 
     RCC->CR |= (1 << 0); 
     while(!(RCC->CR & (1 << 1)));
     RCC->CFGR = 0; 
 
-    Uart2_Init(baud);      
-    Uart1_Init(baud);      
-    ADC1_2CH_Init(); // PA6(X), PA7(Y) 초기화
-
+    // 하드웨어 초기화
+    Uart2_Init(baud);      // 디버그용
+    Uart1_Init(baud);      // HC-05 블루투스용
+    I2C1_Init();           // LCD 통신용
+    LCD_Init();            // LCD 모듈 초기화
+    Joystick_Init();       // 조이스틱(ADC 및 PB5) 초기화
+    
     setvbuf(stdout, NULL, _IONBF, 0);
 }
 
 void Main(void)
 {
-    Sys_Init_Controller(38400); 
+    Sys_Init(38400); 
     
-    printf("\n==========================================\n");
-    printf("   RC Car Controller & Monitor Ready      \n");
-    printf("   Format: [X:xxxx, Y:yyyy] -> Direction  \n");
-    printf("==========================================\n");
-
-    int x_val, y_val;
-    char dir_char = ' '; // 현재 방향 저장용
-
+    LCD_Send_Cmd(0x01); // 화면 초기화
+    TIM2_Delay(2);
+    LCD_Print_String("RC Controller");
+    
+    // 20ms 주기 타이머 시작
+    SysTick_Run(20); 
+    
+    int x, y, sw, dir;
+    char msg[16];
+    
     for(;;)
     {
-        // 1. 조이스틱 ADC 값 읽기
-        ADC1_Select_Channel(6);
-        ADC1_Start();
-        while(!ADC1_Get_Status());
-        x_val = ADC1_Get_Data();
-
-        ADC1_Select_Channel(7);
-        ADC1_Start();
-        while(!ADC1_Get_Status());
-        y_val = ADC1_Get_Data();
-
-        // 2. 방향 판별 (중첩되지 않게 초기화)
-        dir_char = ' '; 
-
-        // X축 판별 (좌/우)
-        if (x_val > (JOY_CENTER + THRESHOLD))      dir_char = 'R';
-        else if (x_val < (JOY_CENTER - THRESHOLD)) dir_char = 'L';
-        
-        // Y축 판별 (상/하) - X축보다 우선순위를 두거나 별도로 전송 가능
-        if (y_val > (JOY_CENTER + THRESHOLD))      dir_char = 'U';
-        else if (y_val < (JOY_CENTER - THRESHOLD)) dir_char = 'D';
-
-        // 3. 블루투스로 문자 전송 (방향이 있을 때만)
-        if (dir_char != ' ') {
-            Uart1_Send_Byte(dir_char);
+        // 1. 20ms 주기로 조이스틱 데이터 처리 및 송신
+        if(SysTick_Check_Timeout())
+        {
+            x = Joystick_Get_X();
+            y = Joystick_Get_Y();
+            sw = Joystick_Get_SW();
+            
+            dir = Get_Joystick_Direction(x, y);
+            
+            // 패킷 생성: S + {방향} + {버튼} + \n
+            // 예: S80\n (전진, 버튼안눌림)
+            sprintf(msg, "S%d%d\n", dir, sw);
+            
+            // 블루투스(Uart1)로 전송
+            Uart1_Send_String(msg);
+            printf(msg);
+            
+            // LCD 출력 업데이트 (첫 번째 줄은 고정, 두 번째 줄에 상태 표시)
+            LCD_Send_Cmd(0xC0); // 2번째 줄 이동
+            sprintf(msg, "DIR:%d BTN:%d    ", dir, sw);
+            LCD_Print_String(msg);
         }
 
-        // 4. 테라텀 모니터링 출력
-        // \r을 사용해 한 줄에서 값이 계속 업데이트되게 합니다.
-        printf("\r[X:%4d, Y:%4d] Send: %c    ", x_val, y_val, dir_char);
-
-        // 5. 블루투스 수신 데이터 확인
+        // 2. 차량으로부터 오는 피드백 데이터 수신
         if(Macro_Check_Bit_Set(USART1->SR, 5)) 
         {
-            char bt_data = (char)USART1->DR;
-            // 수신 데이터가 있으면 줄을 바꿔서 출력
-            printf("\n[BT RX]: %c\n", bt_data); 
+            char rx_data = (char)USART1->DR;
+            // 수신 데이터를 디버그용 터미널(Uart2)로 전달
+            Uart2_Send_Byte(rx_data); 
         }
 
         // 전송 및 화면 갱신 주기 (너무 빠르면 눈이 아프니 적절히 조절)
         for(volatile int i=0; i<800000; i++); 
+    }
+}
+
+// 조이스틱 값을 1~9 방향으로 매핑하는 함수
+int Get_Joystick_Direction(int x, int y) 
+{
+    int raw_dx = 0; 
+    int raw_dy = 0; 
+
+    // X축 원시 데이터 분석 (데드존 기준 1748 ~ 2348)
+    if (x > 2348) raw_dx = 1;
+    else if (x < 1748) raw_dx = -1;
+
+    // Y축 원시 데이터 분석
+    if (y > 2348) raw_dy = 1;
+    else if (y < 1748) raw_dy = -1;
+
+    // 90도 시계 방향 회전 변환 적용
+    // 기존의 왼쪽(-1, 0) 입력이 위쪽(0, 1)으로 매핑되도록 축 교환 및 부호 반전
+    int dx = raw_dy;
+    int dy = -raw_dx;
+
+    // 숫자 키패드 방식 매핑 (789 / 456 / 123)
+    if (dy == 1) { // 전진 라인
+        if (dx == -1) return 7;
+        if (dx == 1) return 9;
+        return 8;
+    } 
+    else if (dy == -1) { // 후진 라인
+        if (dx == -1) return 1;
+        if (dx == 1) return 3;
+        return 2;
+    } 
+    else { // 중립 라인
+        if (dx == -1) return 4;
+        if (dx == 1) return 6;
+        return 5;
     }
 }

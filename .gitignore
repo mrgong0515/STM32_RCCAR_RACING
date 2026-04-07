@@ -56,7 +56,3 @@ dkms.conf
 
 # vscode configuration files
 .vscode/
-
-# dump files
-*.txt
-*.bin
