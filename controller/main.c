@@ -69,7 +69,7 @@ void Main(void)
         }
 
         // 전송 및 화면 갱신 주기 (너무 빠르면 눈이 아프니 적절히 조절)
-        for(volatile int i=0; i<800000; i++); 
+        for(volatile int i=0; i<20000; i++); 
     }
 }
 
