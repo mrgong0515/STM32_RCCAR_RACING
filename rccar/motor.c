@@ -77,22 +77,22 @@ void Control_Motor_By_Joystick(char joy)
         case '7': // 전진 좌회전 (대각선)
             printf(" >> Action: Forward Left\n");
             GPIOA->ODR = (1 << 0) | (0 << 1) | (1 << 4) | (0 << 5);
-            Motor_Set_PWM(50, 100); // 회전을 위해 50에서 75로 상향 조정
+            Motor_Set_PWM(25, 100);
             break;
         case '9': // 전진 우회전 (대각선)
             printf(" >> Action: Forward Right\n");
             GPIOA->ODR = (1 << 0) | (0 << 1) | (1 << 4) | (0 << 5);
-            Motor_Set_PWM(100, 50); // 회전을 위해 50에서 75로 상향 조정
+            Motor_Set_PWM(100, 25); 
             break;
         case '1': // 후진 좌회전 (대각선)
             printf(" >> Action: Backward Left\n");
             GPIOA->ODR = (0 << 0) | (1 << 1) | (0 << 4) | (1 << 5);
-            Motor_Set_PWM(50, 100); // 회전을 위해 50에서 75로 상향 조정
+            Motor_Set_PWM(25, 100);
             break;
         case '3': // 후진 우회전 (대각선)
             printf(" >> Action: Backward Right\n");
             GPIOA->ODR = (0 << 0) | (1 << 1) | (0 << 4) | (1 << 5);
-            Motor_Set_PWM(100, 50); // 회전을 위해 50에서 75로 상향 조정
+            Motor_Set_PWM(100, 25);
             break;
         case '5': // 중립 / 정지
         default:
