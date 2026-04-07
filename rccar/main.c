@@ -44,7 +44,6 @@ void Main(void)
             RC_Packet_Ready = 0;
 
             Control_Motor_By_Joystick(RC_Joy_Val);
-            Buzzer_Control(RC_Btn_Val);
             
             // 정상적인 제어 명령을 받았으므로, 타임아웃 타이머를 다시 500ms로 연장(리셋)합니다.
             TIM4_Repeat(500); 
@@ -56,8 +55,7 @@ void Main(void)
             printf(" [Warning] Signal Lost! Force Stop.\n");
             
             // 차량을 강제로 중립/정지 시키고 부저를 끕니다.
-            Control_Motor_By_Joystick('5'); 
-            Buzzer_Control('0');            
+            Control_Motor_By_Joystick('5');      
             
             // 정지 상태를 계속 유지하며 감시하기 위해 타임아웃 타이머를 재시작합니다.
             TIM4_Repeat(500);
