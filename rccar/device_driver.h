@@ -12,9 +12,9 @@ extern void Uart2_RX_Interrupt_Enable(int en);
 extern void Uart1_Init(int baud);
 extern void Uart1_Send_Byte(char data);
 extern void Uart1_Send_String(char *pt);
-extern void Uart1_Printf(char *fmt,...);
 extern char Uart1_Get_Char(void);
 extern char Uart1_Get_Pressed(void);
+extern void Uart1_RX_Interrupt_Enable(int en);
 
 // SysTick.c
 

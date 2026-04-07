@@ -141,3 +141,22 @@ char Uart1_Get_Char(void)
 	while(!Macro_Check_Bit_Set(USART1->SR, 5));
 	return (char)USART1->DR;
 }
+
+void Uart1_RX_Interrupt_Enable(int en)
+{
+    if(en)
+    {
+        Macro_Set_Bit(USART1->CR1, 5);
+
+        // NVIC Pending Clear (USART1 IRQ: 37)
+        NVIC_ClearPendingIRQ((IRQn_Type)37);
+        
+        // NVIC Interrupt Enable
+        NVIC_EnableIRQ((IRQn_Type)37);
+    }
+    else
+    {
+        Macro_Clear_Bit(USART1->CR1, 5);
+        NVIC_DisableIRQ((IRQn_Type)37);
+    }
+}

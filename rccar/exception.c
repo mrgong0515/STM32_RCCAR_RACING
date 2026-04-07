@@ -33,3 +33,44 @@ void USART2_IRQHandler(void)
 	// NVIC Pending Clear
 	NVIC_ClearPendingIRQ((IRQn_Type)38);
 }
+
+// main.c에서 사용할 전역 변수 선언
+volatile int RC_Packet_Ready = 0;
+volatile char RC_Joy_Val = '5';
+volatile char RC_Btn_Val = '0';
+
+void USART1_IRQHandler(void)
+{
+    static int state = 0;
+    static char temp_joy = '5';
+    static char temp_btn = '0';
+
+    // 수신 데이터가 있는지 확인
+    if(Macro_Check_Bit_Set(USART1->SR, 5))
+    {
+        char recv = (char)(USART1->DR & 0xFF);
+
+        // 프로토콜 해석 (S80\n 형태)
+        if (recv == 'S') {
+            state = 1;
+        } 
+        else if (state == 1) {
+            temp_joy = recv;
+            state = 2;
+        } 
+        else if (state == 2) {
+            temp_btn = recv;
+            state = 3;
+        } 
+        else if (state == 3 && (recv == '\n' || recv == '\r')) {
+            // 패킷 수신이 완료되면 전역 변수에 값을 복사하고 플래그를 세팅합니다.
+            RC_Joy_Val = temp_joy;
+            RC_Btn_Val = temp_btn;
+            RC_Packet_Ready = 1; 
+            state = 0;
+        }
+    }
+
+    // 인터럽트 펜딩 비트 클리어
+    NVIC_ClearPendingIRQ((IRQn_Type)37);
+}
