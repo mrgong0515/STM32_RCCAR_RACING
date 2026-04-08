@@ -12,9 +12,9 @@ extern void Uart2_RX_Interrupt_Enable(int en);
 extern void Uart1_Init(int baud);
 extern void Uart1_Send_Byte(char data);
 extern void Uart1_Send_String(char *pt);
-extern void Uart1_Printf(char *fmt,...);
 extern char Uart1_Get_Char(void);
 extern char Uart1_Get_Pressed(void);
+extern void Uart1_RX_Interrupt_Enable(int en);
 
 // SysTick.c
 
@@ -54,3 +54,9 @@ extern void TIM4_Change_Value(int time);
 extern void TIM3_Out_Init(void);
 extern void TIM3_Out_Freq_Generation(unsigned short freq);
 extern void TIM3_Out_Stop(void);
+
+// Motor.c
+
+extern void Motor_Init(void);
+extern void Motor_Set_PWM(int left_duty, int right_duty);
+extern void Control_Motor_By_Joystick(char joy);

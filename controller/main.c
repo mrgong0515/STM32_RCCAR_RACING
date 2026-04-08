@@ -29,15 +29,17 @@ void Main(void)
     TIM2_Delay(2);
     LCD_Print_String("RC Controller");
     
-    // 20ms 주기 타이머 시작
+    // 20ms 주기 타이머 시작 (ADC 읽기 주기 유지)
     SysTick_Run(20); 
     
     int x, y, sw, dir;
+    int prev_dir = -1; 
+    int prev_sw = -1;  
+    int heartbeat_cnt = 0; // 주기적 전송을 위한 카운터 변수 추가
     char msg[16];
     
     for(;;)
     {
-        // 1. 20ms 주기로 조이스틱 데이터 처리 및 송신
         if(SysTick_Check_Timeout())
         {
             x = Joystick_Get_X();
@@ -46,49 +48,52 @@ void Main(void)
             
             dir = Get_Joystick_Direction(x, y);
             
-            // 패킷 생성: S + {방향} + {버튼} + \n
-            // 예: S80\n (전진, 버튼안눌림)
-            sprintf(msg, "S%d%d\n", dir, sw);
-            
-            // 블루투스(Uart1)로 전송
-            Uart1_Send_String(msg);
-            printf(msg);
-            
-            // LCD 출력 업데이트 (첫 번째 줄은 고정, 두 번째 줄에 상태 표시)
-            LCD_Send_Cmd(0xC0); // 2번째 줄 이동
-            sprintf(msg, "DIR:%d BTN:%d    ", dir, sw);
-            LCD_Print_String(msg);
+            // 상태가 변했거나, 상태가 변하지 않았어도 10주기(200ms)가 경과했다면 전송
+            if(dir != prev_dir || sw != prev_sw || heartbeat_cnt >= 10)
+            {
+                sprintf(msg, "S%d%d\n", dir, sw);
+                Uart1_Send_String(msg);
+                
+                // LCD 업데이트는 상태가 실제로 변했을 때만 수행하여 불필요한 깜빡임 방지
+                if(dir != prev_dir || sw != prev_sw) 
+                {
+                    LCD_Send_Cmd(0xC0); 
+                    sprintf(msg, "DIR:%d BTN:%d    ", dir, sw);
+                    LCD_Print_String(msg);
+                }
+                
+                prev_dir = dir;
+                prev_sw = sw;
+                heartbeat_cnt = 0; // 데이터 전송 후 카운터 리셋
+            }
+            else
+            {
+                heartbeat_cnt++; // 상태가 변하지 않았다면 카운터 증가
+            }
         }
 
-        // 2. 차량으로부터 오는 피드백 데이터 수신
         if(Macro_Check_Bit_Set(USART1->SR, 5)) 
         {
             char rx_data = (char)USART1->DR;
-            // 수신 데이터를 디버그용 터미널(Uart2)로 전달
             Uart2_Send_Byte(rx_data); 
         }
-
-        // 전송 및 화면 갱신 주기 (너무 빠르면 눈이 아프니 적절히 조절)
-        for(volatile int i=0; i<20000; i++); 
     }
 }
 
-// 조이스틱 값을 1~9 방향으로 매핑하는 함수
 int Get_Joystick_Direction(int x, int y) 
 {
     int raw_dx = 0; 
     int raw_dy = 0; 
 
-    // X축 원시 데이터 분석 (데드존 기준 1748 ~ 2348)
-    if (x > 2348) raw_dx = 1;
-    else if (x < 1748) raw_dx = -1;
+    // X축 원시 데이    터 분석
+    if (x > 3000) raw_dx = 1;
+    else if (x < 1000) raw_dx = -1;
 
     // Y축 원시 데이터 분석
-    if (y > 2348) raw_dy = 1;
-    else if (y < 1748) raw_dy = -1;
+    if (y > 3000) raw_dy = 1;
+    else if (y < 1000) raw_dy = -1;
 
-    // 90도 시계 방향 회전 변환 적용
-    // 기존의 왼쪽(-1, 0) 입력이 위쪽(0, 1)으로 매핑되도록 축 교환 및 부호 반전
+    // 방향 맞추기
     int dx = raw_dy;
     int dy = -raw_dx;
 
