@@ -1,7 +1,7 @@
-#define SYSCLK  96000000
+#define SYSCLK  16000000
 #define HCLK	SYSCLK
 #define PCLK2	HCLK
-#define PCLK1	HCLK/2
+#define PCLK1	HCLK
 #define TIMXCLK ((HCLK == PCLK1)?(PCLK1):(PCLK1*2))
 
 #define RAM_START	0x20000000
