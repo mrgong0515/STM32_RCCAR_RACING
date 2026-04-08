@@ -1,1 +1,2 @@
 # STM32_RCCAR_CONTROLLER
+팀명 : 이니셜 O
