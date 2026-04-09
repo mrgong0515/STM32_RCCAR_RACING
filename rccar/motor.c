@@ -22,9 +22,10 @@
 #define MOVE_ALL_PINS (PIN_M1_IN1 | PIN_M1_IN2 | PIN_M2_IN3 | PIN_M2_IN4)
 
 // PWM 속도 제어용 상수 정의
-#define SPEED_MAX   100
-#define SPEED_TURN  45
-#define SPEED_STOP  0
+#define SPEED_MAX       100 // 직진, 제자리 회전 시 최대 속도
+#define SPEED_DIAG_FAST 90  // 대각선 주행 시 바깥쪽 바퀴 속도
+#define SPEED_DIAG_SLOW 30  // 대각선 주행 시 안쪽 바퀴 속도 
+#define SPEED_STOP      0
 
 /**
  * @brief 모터 구동용 하드웨어 초기화
@@ -120,22 +121,22 @@ void Control_Motor_By_Joystick(char joy)
         case '7': // 전진 좌회전 (대각선)
             printf(" >> Action: Forward Left\n");
             GPIOA->ODR |= MOVE_FORWARD;
-            Motor_Set_PWM(SPEED_MAX, SPEED_TURN);
+            Motor_Set_PWM(SPEED_DIAG_FAST, SPEED_DIAG_SLOW);
             break;
         case '9': // 전진 우회전 (대각선)
             printf(" >> Action: Forward Right\n");
             GPIOA->ODR |= MOVE_FORWARD;
-            Motor_Set_PWM(SPEED_TURN, SPEED_MAX); 
+            Motor_Set_PWM(SPEED_DIAG_SLOW, SPEED_DIAG_FAST); 
             break;
         case '1': // 후진 좌회전 (대각선)
             printf(" >> Action: Backward Left\n");
             GPIOA->ODR |= MOVE_BACKWARD;
-            Motor_Set_PWM(SPEED_MAX, SPEED_TURN);
+            Motor_Set_PWM(SPEED_DIAG_FAST, SPEED_DIAG_SLOW);
             break;
         case '3': // 후진 우회전 (대각선)
             printf(" >> Action: Backward Right\n");
             GPIOA->ODR |= MOVE_BACKWARD;
-            Motor_Set_PWM(SPEED_TURN, SPEED_MAX);
+            Motor_Set_PWM(SPEED_DIAG_SLOW, SPEED_DIAG_FAST);
             break;
         case '5': // 정지
         default:
