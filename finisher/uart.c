@@ -5,6 +5,12 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+int fputc(int ch, FILE *f)
+{
+    Uart2_Send_Byte((char)ch);
+    return ch;
+}
+
 void Uart2_Init(int baud)
 {
   double div;
