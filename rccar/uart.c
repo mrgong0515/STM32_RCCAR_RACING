@@ -1,10 +1,9 @@
 /**
  * @file uart.c
- * @brief UART 직렬 통신 제어 드라이버 (타임아웃 및 서큘러 큐 적용 버전)
+ * @brief UART 직렬 통신 제어 드라이버 (타임아웃 적용 버전)
  * @details STM32F411 MCU의 USART1 및 USART2 채널에 대한 
  * 초기화, 송수신, 인터럽트 제어 기능을 제공합니다.
- * 무한 대기를 방지하기 위한 소프트웨어 타임아웃 로직과
- * 수신 데이터 병목 현상을 막기 위한 환형 버퍼 로직이 포함되어 있습니다.
+ * 무한 대기를 방지하기 위한 소프트웨어 타임아웃 로직이 포함되어 있습니다.
  */
 
 #include "device_driver.h"
@@ -20,52 +19,6 @@
 volatile int Uart_Data_In = 0;        
 /** @brief 수신된 데이터 1바이트를 저장하는 변수 */
 volatile unsigned char Uart_Data = 0; 
-
-// 서큘러 큐를 위한 전역 변수 선언
-volatile char rx_buffer[RX_BUFFER_SIZE];
-volatile int rx_head = 0;
-volatile int rx_tail = 0;
-
-/**
- * @brief 서큘러 큐 초기화
- */
-void Uart_Buffer_Init(void) 
-{
-    rx_head = 0;
-    rx_tail = 0;
-}
-
-/**
- * @brief 수신된 1바이트 데이터를 큐에 삽입 (인터럽트에서 호출)
- * @details 비트 연산자(&)를 활용하여 모듈러(%) 연산의 속도 지연을 최적화했습니다.
- */
-void Uart_Buffer_Push(char data) 
-{
-    int next_tail = (rx_tail + 1) & (RX_BUFFER_SIZE - 1);
-    
-    if (next_tail != rx_head) 
-    {
-        rx_buffer[rx_tail] = data;
-        rx_tail = next_tail;
-    }
-}
-
-/**
- * @brief 큐에 저장된 1바이트 데이터 추출 (메인 루프에서 호출)
- * @return int 데이터가 있으면 1, 큐가 비어있으면 0 반환
- */
-int Uart_Buffer_Pop(char *data) 
-{
-    if (rx_head == rx_tail) 
-    {
-        return 0; // 버퍼가 비어있음
-    }
-    
-    *data = rx_buffer[rx_head];
-    rx_head = (rx_head + 1) & (RX_BUFFER_SIZE - 1);
-    
-    return 1;
-}
 
 /**
  * @brief USART2 하드웨어 초기화 (디버깅용)
@@ -118,7 +71,7 @@ void Uart2_Send_Byte(char data)
         timeout = 0;
         while(!Macro_Check_Bit_Set(USART2->SR, 7))
         {
-            if(++timeout > UART_TIMEOUT_COUNT) return; 
+            if(++timeout > UART_TIMEOUT_COUNT) return; // 타임아웃 발생 시 전송 취소 및 함수 탈출
         }
         USART2->DR = 0x0d;
     }
@@ -126,7 +79,7 @@ void Uart2_Send_Byte(char data)
     timeout = 0;
     while(!Macro_Check_Bit_Set(USART2->SR, 7))
     {
-        if(++timeout > UART_TIMEOUT_COUNT) return; 
+        if(++timeout > UART_TIMEOUT_COUNT) return; // 타임아웃 발생 시 전송 취소 및 함수 탈출
     }
     USART2->DR = data;
 }
@@ -189,7 +142,7 @@ void Uart1_Init(int baud)
     // HC-05 STATE 핀을 PA8로 입력 설정
     Macro_Set_Bit(RCC->AHB1ENR, 0); 
     Macro_Write_Block(GPIOA->MODER, 0x3, 0x0, 16); 
-    Macro_Write_Block(GPIOA->PUPDR, 0x3, 0x2, 16); 
+    Macro_Write_Block(GPIOA->PUPDR, 0x3, 0x2, 16); // 풀다운 설정
 }
 
 /**
@@ -207,7 +160,7 @@ void Uart1_Send_Byte(char data)
         timeout = 0;
         while(!Macro_Check_Bit_Set(USART1->SR, 7))
         {
-            if(++timeout > UART_TIMEOUT_COUNT) return; 
+            if(++timeout > UART_TIMEOUT_COUNT) return; // 타임아웃 발생 시 함수 탈출
         }
         USART1->DR = 0x0d;
     }
@@ -215,7 +168,7 @@ void Uart1_Send_Byte(char data)
     timeout = 0;
     while(!Macro_Check_Bit_Set(USART1->SR, 7))
     {
-        if(++timeout > UART_TIMEOUT_COUNT) return; 
+        if(++timeout > UART_TIMEOUT_COUNT) return; // 타임아웃 발생 시 함수 탈출
     }
     USART1->DR = data;
 }
@@ -262,7 +215,7 @@ char Uart1_Get_Char(void)
 
     while(!Macro_Check_Bit_Set(USART1->SR, 5))
     {
-        if(++timeout > UART_TIMEOUT_COUNT) return (char)0; 
+        if(++timeout > UART_TIMEOUT_COUNT) return (char)0; // 타임아웃 시 널 문자 반환
     }
     return (char)USART1->DR;
 }

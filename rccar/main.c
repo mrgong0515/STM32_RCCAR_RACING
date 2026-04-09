@@ -1,15 +1,23 @@
 /**
  * @file main.c
  * @brief RC카 차량 제어용 메인 수신 애플리케이션
- * @details 서큘러 큐를 통해 수신된 패킷을 해석하고 XOR 체크섬 검증을 수행합니다.
- * 통신 단절 감지 시 차량을 강제로 정지시키는 페일세이프(Fail-Safe) 로직이 포함되어 있습니다.
+ * @details 블루투스(USART1) 인터럽트를 통해 컨트롤러의 조이스틱 및 버튼 상태 패킷을 수신하고 모터를 제어합니다.
+ * 일정 시간 통신이 끊길 경우 차량의 폭주를 막기 위해 강제로 정지시키는 페일세이프(Fail-Safe) 로직이 포함되어 있습니다.
  */
 
 #include "device_driver.h"
 #include <stdio.h>
 
+// exception.c에 선언된 전역 변수들 참조
+extern volatile int RC_Packet_Ready;
+extern volatile char RC_Joy_Val;
+extern volatile char RC_Btn_Val;
+
 /**
  * @brief 시스템 클럭 및 하드웨어 주변장치 초기화
+ * @details FPU 및 16MHz 클럭을 설정하고 PC 디버깅용 UART2와 블루투스 통신용 UART1을 초기화합니다.
+ * 패킷의 비동기 수신을 위해 UART1의 수신 인터럽트를 활성화하며, 모터 제어용 핀을 초기화합니다.
+ * @param baud UART 통신에 사용할 보드레이트 (예: 38400)
  */
 void Sys_Init(int baud) 
 {
@@ -20,8 +28,10 @@ void Sys_Init(int baud)
 
     Uart2_Init(baud);      
     Uart1_Init(baud);      
-    Uart_Buffer_Init();
+    
+    // USART1 수신 인터럽트 활성화
     Uart1_RX_Interrupt_Enable(1);
+    
     Motor_Init();      
     
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -29,7 +39,9 @@ void Sys_Init(int baud)
 
 /**
  * @brief 메인 프로그램 루프
- * @details 서큘러 큐에서 데이터를 꺼내어 S + 방향 + 버튼 + 체크섬 구조를 검증합니다.
+ * @details 통신 단절을 감지하기 위한 500ms 타임아웃 타이머를 운용합니다.
+ * 인터럽트를 통해 정상적인 제어 패킷이 수신되면 모터를 구동하고 타임아웃 타이머를 리셋(연장)합니다.
+ * 500ms 동안 패킷이 들어오지 않아 타이머가 만료되면 연결이 끊긴 것으로 판단하여 모터를 중립 상태(5)로 강제 전환합니다.
  */
 void Main(void)
 {
@@ -37,62 +49,34 @@ void Main(void)
     
     printf("\n==================================\n");
     printf("   Bluetooth Controller Mode      \n");
-    printf("   Listening on USART1 (Queue)    \n");
+    printf("   Listening on USART1 (Interrupt)\n");
     printf("==================================\n");
 
+    // 초기화 직후 500ms 타임아웃 감지용 타이머를 시작합니다.
     TIM4_Repeat(500); 
-
-    char recv_data;
-    int state = 0;
-    char temp_joy = '5';
-    char temp_btn = '0';
-    char temp_chk = 0;
 
     for(;;)
     {
-        // 1. 서큘러 큐에 데이터가 있으면 순차적으로 꺼내어 파싱
-        while (Uart_Buffer_Pop(&recv_data))
+        // 인터럽트를 통해 정상적인 패킷이 들어왔을 때
+        if (RC_Packet_Ready)
         {
-            if (recv_data == 'S') {
-                state = 1;
-            } 
-            else if (state == 1) {
-                temp_joy = recv_data;
-                state = 2;
-            } 
-            else if (state == 2) {
-                temp_btn = recv_data;
-                state = 3;
-            } 
-            else if (state == 3) {
-                temp_chk = recv_data; // 송신 측에서 보낸 XOR 체크섬 바이트
-                state = 4;
-            }
-            else if (state == 4 && (recv_data == '\n' || recv_data == '\r')) {
-                // 패킷 수신 완료 후 무결성 검증
-                char calc_chk = 'S' ^ temp_joy ^ temp_btn;
-                
-                if (calc_chk == temp_chk) {
-                    // 데이터가 손상되지 않았을 때만 모터 제어 및 타이머 리셋 수행
-                    Control_Motor_By_Joystick(temp_joy);
-                    TIM4_Repeat(500); 
-                } else {
-                    // 체크섬 불일치 (노이즈 변조 발생 시 해당 패킷 폐기)
-                    printf(" [Error] Checksum Mismatch! Ignored.\n");
-                }
-                state = 0;
-            }
-            else {
-                // 노이즈 등으로 패킷 구조가 무너졌을 경우 상태 초기화
-                if(recv_data != '\r' && recv_data != '\n') state = 0;
-            }
+            RC_Packet_Ready = 0;
+
+            Control_Motor_By_Joystick(RC_Joy_Val);
+            
+            // 정상적인 제어 명령을 받았으므로, 타임아웃 타이머를 다시 500ms로 연장(리셋)합니다.
+            TIM4_Repeat(500); 
         }
         
-        // 2. 500ms 통신 단절 감지 페일세이프
+        // 500ms 동안 패킷이 들어오지 않아 타이머가 만료되었다면 (통신 단절 상태)
         if(TIM4_Check_Timeout())
         {
             printf(" [Warning] Signal Lost! Force Stop.\n");
+            
+            // 차량을 강제로 중립/정지 시키고 부저를 끕니다.
             Control_Motor_By_Joystick('5');      
+            
+            // 정지 상태를 계속 유지하며 감시하기 위해 타임아웃 타이머를 재시작합니다.
             TIM4_Repeat(500);
         }
     }

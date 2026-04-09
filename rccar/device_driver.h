@@ -16,12 +16,6 @@ extern char Uart1_Get_Char(void);
 extern char Uart1_Get_Pressed(void);
 extern void Uart1_RX_Interrupt_Enable(int en);
 
-#define RX_BUFFER_SIZE 64
-
-extern void Uart_Buffer_Init(void);
-extern void Uart_Buffer_Push(char data);
-extern int Uart_Buffer_Pop(char *data);
-
 // SysTick.c
 
 extern void SysTick_Run(unsigned int msec);
