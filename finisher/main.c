@@ -1,7 +1,13 @@
+/**
+ * @file main.c
+ * @brief RC카 레이싱 피니셔 보드 메인 애플리케이션
+ * @details 2개의 초음파 센서를 이용하여 1P와 2P 차량의 결승선 통과 여부를 감지하고,
+ * 통과 순서에 따라 승자를 판별하여 MAX7219 도트 매트릭스 디스플레이에 결과를 출력합니다.
+ */
+
 #include "device_driver.h"
 #include <stdio.h>
 
-// --- [매크로 기반 핀 제어] ---
 // 초음파 센서 (1P: PA10/PB5, 2P: PA8/PA9)
 #define TRIG1_HIGH()   Macro_Set_Bit(GPIOA->ODR, 10)
 #define TRIG1_LOW()    Macro_Clear_Bit(GPIOA->ODR, 10)
@@ -10,6 +16,7 @@
 #define TRIG2_LOW()    Macro_Clear_Bit(GPIOA->ODR, 8)
 #define ECHO2_PIN      Macro_Check_Bit_Set(GPIOA->IDR, 9)
 
+// 도트 매트릭스 출력용 8x8 폰트 데이터 배열
 unsigned char font_P[8] = {0x3C, 0x22, 0x22, 0x3C, 0x20, 0x20, 0x20, 0x00};
 unsigned char font_1[8] = {0x08, 0x18, 0x28, 0x08, 0x08, 0x08, 0x08, 0x00};
 unsigned char font_2[8] = {0x3C, 0x22, 0x02, 0x0C, 0x10, 0x20, 0x3E, 0x00};
@@ -18,15 +25,17 @@ unsigned char font_I[8] = {0x1C, 0x08, 0x08, 0x08, 0x08, 0x08, 0x1C, 0x00};
 unsigned char font_N[8] = {0x22, 0x32, 0x2A, 0x26, 0x22, 0x22, 0x22, 0x00};
 unsigned char font_blank[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-
-// --- [함수 선언: max7219.c에 있는 함수들을 쓰겠다고 선언] ---
 void GPIO_Init_Dual(void);
 void MAX7219_Init_Dual(int player);
 void MAX7219_SendOne(int player, int module, unsigned char addr, unsigned char data);
 void MAX7219_ClearAll(int player);
 
-
-// --- 시스템 초기화 ---
+/**
+ * @brief 시스템 클럭 및 하드웨어 주변장치 초기화
+ * @details FPU 및 16MHz 클럭을 설정하고 디버깅용 UART와
+ * 1P, 2P 초음파 센서 제어를 위한 GPIO 핀(TRIG, ECHO) 모드를 초기화합니다.
+ * @param baud UART 디버그 통신에 사용할 보드레이트
+ */
 void Sys_Init(int baud) 
 {
     // FPU 및 기본 클럭 설정
@@ -51,7 +60,11 @@ void Sys_Init(int baud)
     Macro_Clear_Area(GPIOA->MODER, 0x3, 9*2);        // PA9 -> Input(00)
 }
 
-// --- [함수 1] 1번 센서용 측정 ---
+/**
+ * @brief 1번 플레이어(1P) 초음파 센서 거리 측정
+ * @details TRIG 핀에 펄스를 인가한 후 ECHO 핀의 High 유지 시간을 측정하여 거리를 계산합니다.
+ * @return float 측정된 거리 값 (비정상 응답 시 -1.0 반환)
+ */
 float Get_Distance_1P(void) {
     uint32_t count = 0, timeout = 0;
 
@@ -70,7 +83,11 @@ float Get_Distance_1P(void) {
     return count * 0.017f;
 }
 
-// --- [함수 2] 2번 센서용 측정 ---
+/**
+ * @brief 2번 플레이어(2P) 초음파 센서 거리 측정
+ * @details TRIG 핀에 펄스를 인가한 후 ECHO 핀의 High 유지 시간을 측정하여 거리를 계산합니다.
+ * @return float 측정된 거리 값 (비정상 응답 시 -1.0 반환)
+ */
 float Get_Distance_2P(void) {
     uint32_t count = 0, timeout = 0;
 
@@ -89,12 +106,25 @@ float Get_Distance_2P(void) {
     return count * 0.017f;
 }
 
+/**
+ * @brief 특정 도트 매트릭스 모듈에 8x8 글꼴 패턴 출력
+ * @details 입력받은 8바이트 폰트 배열을 행(Row) 단위로 전송하여 화면에 문자를 표시합니다.
+ * @param player 출력할 플레이어 라인 (1 또는 2)
+ * @param module 출력할 개별 모듈의 인덱스 (0 ~ 3)
+ * @param pattern 출력할 8x8 형태의 문자 데이터 배열 포인터
+ */
 void Display_Pattern(int player, int module, unsigned char *pattern) {
     for (int row = 0; row < 8; row++) {
         MAX7219_SendOne(player, module, row + 1, pattern[row]);
     }
 }
 
+/**
+ * @brief 메인 프로그램 루프
+ * @details 하드웨어 초기화 후 평상시 대기 화면을 출력합니다.
+ * 이후 무한 루프를 돌며 1P와 2P의 초음파 센서 값을 감시하여,
+ * 임계값(Threshold) 이내로 차량이 먼저 진입한 플레이어를 승자로 판별하고 결과를 출력합니다.
+ */
 void Main(void) {
     GPIO_Init_Dual(); 
     Sys_Init(38400);
@@ -122,8 +152,8 @@ void Main(void) {
 
         printf("\r1P: %d | 2P: %d   ", d1, d2);
 
-        if (d1 > 1 && d1 < 350) { winner = 1; break; }
-        if (d2 > 1 && d2 < 350) { winner = 2; break; }
+        if (d1 > 1 && d1 < 550) { winner = 1; break; }
+        if (d2 > 1 && d2 < 550) { winner = 2; break; }
     }
 
     // [승자 결정 후 화면 처리]

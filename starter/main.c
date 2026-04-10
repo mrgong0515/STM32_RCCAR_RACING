@@ -1,3 +1,11 @@
+/**
+ * @file main.c
+ * @brief RC카 레이싱 스타터 보드 메인 애플리케이션
+ * @details 조도 센서(ADC)를 통해 1P와 2P 차량의 출발 대기 상태를 확인하고,
+ * 카운트다운을 진행하며 부정 출발(False Start) 여부를 실시간으로 감지하여
+ * 도트 매트릭스 디스플레이와 부저를 통해 상태를 출력합니다.
+ */
+
 #include "device_driver.h"
 #include <stdio.h>
 
@@ -88,7 +96,11 @@ unsigned char char_X[8] = {
     0x81    // 10000001
 };
 
-// 대기 상태에서 양쪽 차량이 정위치에 있는지 확인 및 1번과 2번 패널 깜빡이는 효과로 "대기" 상태 표시
+/**
+ * @brief 출발 대기 상태 시각화
+ * @details 대기 상태에서 양쪽 차량이 정위치에 있을 때,
+ * 1번과 2번 패널을 0.5초 간격으로 점멸하여 출발 대기 완료를 시각적으로 알립니다.
+ */
 void Ready_State(void)
 {
     for (int i = 0; i < 5; i++) {
@@ -102,7 +114,12 @@ void Ready_State(void)
     }
 }
 
-// [0]: 정상 출발, [1]: P1 부정 출발, [2]: P2 부정 출발, [3]: 둘 다 부정 출발
+/**
+ * @brief 부정 출발(False Start) 감지
+ * @details 조도 센서 값을 임계값(threshold)과 비교하여 차량이 빛을 가리고 있는지 판별합니다.
+ * @param threshold 차량 이탈을 판단하는 조도 센서 기준값
+ * @return int [0]: 정상 대기, [1]: 1P 부정 출발, [2]: 2P 부정 출발, [3]: 둘 다 부정 출발
+ */
 int Check_False_Start_Detail(unsigned int threshold)
 {
     int s1 = (Adc_Read(0) > threshold); // PA0가 밝아지면 1
@@ -114,6 +131,13 @@ int Check_False_Start_Detail(unsigned int threshold)
     return 0;               // 둘 다 아직 정지 상태
 }
 
+/**
+ * @brief 카운트다운 진행 및 부정 출발 모니터링
+ * @details 3, 2, 1 숫자를 디스플레이와 부저음으로 출력하며, 
+ * 각 단계 사이의 대기 시간 동안 지속적으로 부정 출발을 모니터링합니다.
+ * @param threshold 부정 출발을 감지하기 위한 조도 센서 기준값
+ * @return int 정상 출발 시 0, 부정 출발 발생 시 해당 위반 상태 코드 반환
+ */
 int Countdown_State(unsigned int threshold)
 {
     int fs = 0;
@@ -170,6 +194,11 @@ int Countdown_State(unsigned int threshold)
     return 0;       // 정상 출발 완료
 }
 
+/**
+ * @brief 조도 센서 측정을 위한 ADC 하드웨어 초기화
+ * @details PA0, PA1 핀을 아날로그 입력 모드로 설정하고, 
+ * 노이즈 방지를 위해 ADC 샘플링 타임을 최대로 설정하여 활성화합니다.
+ */
 void Adc_Init(void)
 {
     // 1. GPIOA 및 ADC1 클럭 활성화
@@ -187,6 +216,12 @@ void Adc_Init(void)
     ADC1->SMPR2 |= (0x7 << 0) | (0x7 << 3); // CH0, CH1 최대 샘플링 타임
 }
 
+/**
+ * @brief 지정된 채널의 아날로그-디지털 변환 수행
+ * @details 원하는 채널 번호를 선택한 후 소프트웨어 트리거로 변환을 시작하고 결과를 기다립니다.
+ * @param channel 읽어올 ADC 채널 번호 (PA0의 경우 0, PA1의 경우 1)
+ * @return unsigned int 변환이 완료된 디지털 데이터 (0 ~ 4095)
+ */
 unsigned int Adc_Read(int channel)
 {
     ADC1->SQR3 = channel;               // 읽을 채널 선택
@@ -195,6 +230,11 @@ unsigned int Adc_Read(int channel)
     return ADC1->DR;                    // 결과값 반환
 }
 
+/**
+ * @brief 시스템 클럭 및 통신용 주변장치 초기화
+ * @details FPU 및 시스템 클럭을 설정하고 상태 디버깅용 UART 포트를 초기화합니다.
+ * @param baud UART 통신에 사용할 속도(Baudrate)
+ */
 void Sys_Init(int baud)
 {
     // FPU 및 클럭 설정
@@ -209,6 +249,11 @@ void Sys_Init(int baud)
     setvbuf(stdout, NULL, _IONBF, 0);
 }
 
+/**
+ * @brief 메인 프로그램 루프
+ * @details 센서 값을 읽어 차량 정위치를 확인하고, 버튼 입력에 따라 카운트다운을 시작합니다.
+ * 부정 출발 감지 결과에 맞춰 화면에 경고 문구(FSP1, FSP2 등)를 출력합니다.
+ */
 void Main(void)
 {
     unsigned int sensor1, sensor2;

@@ -1,3 +1,10 @@
+/**
+ * @file buzzer.c
+ * @brief 부저 하드웨어 제어 드라이버
+ * @details 피니셔 보드에 연결된 부저(PB0)를 제어하여 카운트다운 및 레이싱 시작과 같은 
+ * 다양한 패턴의 비프(Beep) 효과음을 출력하는 기능을 제공합니다.
+ */
+
 #include "device_driver.h"
 
 #define RCC_AHB1ENR    (*(volatile unsigned int*)0x40023830)
@@ -5,10 +12,15 @@
 #define GPIOB_OTYPER   (*(volatile unsigned int*)0x40020404)
 #define GPIOB_ODR      (*(volatile unsigned int*)0x40020414)
 
-// 부저: A3 = PB0
+// Buzzer: PB0 (A3)
 #define BUZZER_ON()   (GPIOB_ODR |=  (1 << 0))
 #define BUZZER_OFF()  (GPIOB_ODR &= ~(1 << 0))
 
+/**
+ * @brief 부저 하드웨어 초기화
+ * @details 부저가 연결된 GPIOB 클럭을 활성화하고, PB0 핀을 Push-pull 방식의 
+ * 출력 모드로 설정합니다. 초기 상태는 부저가 울리지 않도록 OFF 상태로 만듭니다.
+ */
 void Buzzer_Init(void)
 {
     // GPIOB 클럭 활성화
@@ -24,6 +36,12 @@ void Buzzer_Init(void)
     BUZZER_OFF();
 }
 
+/**
+ * @brief 커스텀 딜레이 비프음 출력
+ * @details 지정된 밀리초(ms) 단위의 시간만큼 부저를 켜고 끄는 기본 동작을 수행합니다.
+ * @param on_ms 부저를 울릴 시간 (밀리초 단위)
+ * @param off_ms 부저를 끈 후 대기할 시간 (밀리초 단위)
+ */
 void Buzzer_Beep(int on_ms, int off_ms)
 {
     BUZZER_ON();
@@ -37,19 +55,29 @@ void Buzzer_Beep(int on_ms, int off_ms)
         TIM2_Delay(off_ms);
 }
 
-// 숫자 3, 2용 짧은 삑
+/**
+ * @brief 짧은 카운트다운 효과음 (숫자 3, 2)
+ * @details 80ms 동안 짧게 부저를 울려 경기 시작 전 초기 카운트다운 효과를 냅니다.
+ */
 void Buzzer_Count_Short(void)
 {
     Buzzer_Beep(80, 10);
 }
 
-// 숫자 1용 조금 더 긴 삑
+/**
+ * @brief 약간 긴 카운트다운 효과음 (숫자 1)
+ * @details 140ms 동안 부저를 울려 카운트다운의 마지막 임박 상태를 알립니다.
+ */
 void Buzzer_Count_Long(void)
 {
     Buzzer_Beep(140, 10);
 }
 
-// 스타트용 레이싱 느낌
+/**
+ * @brief 레이싱 출발 효과음
+ * @details 짧은 비프음 3회 연속 출력 후 긴 비프음을 울려 실제 모터스포츠의 
+ * 출발 신호(띠, 띠, 띠, 삐-)와 유사한 사운드 패턴을 연출합니다.
+ */
 void Buzzer_Start_Race(void)
 {
     Buzzer_Beep(50, 30);
