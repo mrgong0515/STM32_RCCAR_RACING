@@ -29,7 +29,7 @@ STM32F411xE MCU가 탑재된 Nucleo-64 보드를 기반으로 하며, 모터 제
 ![전체 시스템 구성2](./assets/imgs/overall2.jpg)
 
 ### 레이싱 주행 시연
-![주행 시연 영상](./assets/gifs/racing.gif)
+<video src="./assets/videos/racing.mp4" controls="controls" width="100%"></video>
 
 ### 컨트롤러
 ![컨트롤러1](./assets/imgs/controller1.jpg)
@@ -147,7 +147,6 @@ STM32_RCCAR_CONTROLLER/
 ```
 
 ## 팀원 소개 및 역할 분담
-
 <div align="center">
   <table>
     <tr>
